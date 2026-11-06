@@ -3607,12 +3607,29 @@
          Cada função deve devolver uma Promise com { ok: true } ou { ok: false, erro: 'mensagem' }.
          No login, { ok: true, redirect: 'URL do painel' } leva o usuário para a área logada.
          ===================================================================== */
+      var API_ACESSO = 'https://script.google.com/macros/s/AKfycbyi9OkzuqHJ5NsLBtOaC8-NTS1B18OLM2O9ND3SWrlQPILJpYQ2jAQ2MBlKvG2q4Q3l/exec';
+      function apiAcesso(dados) {
+        return fetch(API_ACESSO, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(dados) })
+          .then(function (r) { return r.json(); })
+          .catch(function () { return { ok: false, erro: 'Sem conexão no momento. Tente novamente.' }; });
+      }
       window.VIVA_ACESSO = {
         // true = deixa navegar pelas telas para apresentação, sem validar de verdade.
-        modoDemonstracao: true,
-        entrar: null, //           function (perfil, identificador, senha) { ... }
-        solicitarCodigo: null, //  function (perfil, identificador) { ... }
-        redefinirSenha: null, //   function (perfil, identificador, codigo, novaSenha) { ... }
+        modoDemonstracao: false,
+        entrar: function (perfil, identificador, senha) {
+          return apiAcesso({ api: 'login', perfil: perfil, id: identificador, senha: senha }).then(function (r) {
+            if (!r || !r.ok) return r;
+            try { sessionStorage.setItem('vivaSessao', JSON.stringify({ token: r.token, perfil: r.perfil, nome: r.nome })); }
+            catch (e) { return { ok: false, erro: 'Ative os cookies/armazenamento do navegador para entrar.' }; }
+            return { ok: true, redirect: '/painel/' };
+          });
+        },
+        solicitarCodigo: function (perfil, identificador) {
+          return apiAcesso({ api: 'codigo', perfil: perfil, id: identificador });
+        },
+        redefinirSenha: function (perfil, identificador, codigo, novaSenha) {
+          return apiAcesso({ api: 'definirSenha', perfil: perfil, id: identificador, codigo: codigo, senha: novaSenha });
+        },
       };
 
       (function () {
