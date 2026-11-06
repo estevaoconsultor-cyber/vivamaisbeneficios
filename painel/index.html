@@ -128,12 +128,34 @@ function api(dados){
     .catch(function(){ return { ok: false, erro: 'Sem conexão no momento. Tente novamente.' }; })
     .then(function(r){ if(r && r.sessao === false) sairLocal(r.erro); return r || { ok: false }; });
 }
+function voltarMaster(){
+  var m = null; try { m = JSON.parse(sessionStorage.getItem('vivaSessaoMaster') || 'null'); } catch(e){}
+  try { sessionStorage.removeItem('vivaSessaoMaster'); if(m) sessionStorage.setItem('vivaSessao', JSON.stringify(m)); else sessionStorage.removeItem('vivaSessao'); } catch(e){}
+  location.replace(m ? '/painel/' : '/#acesso');
+}
 function sairLocal(motivo){
+  if(S && S.master){ voltarMaster(); return; }
   try { sessionStorage.removeItem('vivaSessao'); } catch(e){}
   if(motivo) alertaTopo(motivo);
   location.replace('/#acesso/' + (S && S.perfil ? S.perfil : ''));
 }
-function sair(){ api({ api: 'sair' }).then(function(){ sairLocal(); }); }
+function sair(){ api({ api: 'sair' }).then(function(){ if(S.master) voltarMaster(); else sairLocal(); }); }
+function verComo(u, perfil, btn){
+  ocupado(btn, true, 'Abrindo…');
+  api({ api: 'entrarComo', id: u.id, perfil: perfil }).then(function(r){
+    if(!r.ok){ ocupado(btn, false); alert(r.erro || 'Não foi possível abrir.'); return; }
+    try {
+      sessionStorage.setItem('vivaSessaoMaster', JSON.stringify(S));
+      sessionStorage.setItem('vivaSessao', JSON.stringify({ token: r.token, perfil: r.perfil, nome: r.nome, master: true }));
+    } catch(e){ ocupado(btn, false); return; }
+    location.reload();
+  });
+}
+function faixaMaster(){
+  return el('div', { role: 'status', style: 'background:#FEF3C7;color:#78350F;border-bottom:1px solid #FCD34D;padding:10px clamp(16px,3vw,32px);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font-size:14px' },
+    el('span', null, el('strong', null, 'Acesso master: '), 'você está vendo o ambiente ' + (NOMES[S.perfil] || S.perfil) + ' de ' + S.nome + '. As ações feitas aqui ficam registradas em seu nome.'),
+    el('button', { type: 'button', class: 'btn', style: 'min-height:40px', on: { click: function(){ api({ api: 'sair' }).then(voltarMaster); } } }, 'Voltar ao painel do gestor'));
+}
 function alertaTopo(t){ app.textContent = ''; app.appendChild(el('div', { class: 'load' }, t)); }
 
 // cria elementos com texto SEMPRE como texto (nunca HTML)
@@ -195,6 +217,7 @@ function carregar(){
   api({ api: 'painel' }).then(function(r){
     if(!r.ok){ if(r.sessao !== false) alertaTopo(r.erro || 'Não foi possível carregar.'); return; }
     app.textContent = '';
+    if(S.master) app.appendChild(faixaMaster());
     ({ gestor: gestor, empresa: empresa, cliente: cliente, financeiro: financeiro })[r.perfil](r);
   });
 }
@@ -278,6 +301,9 @@ function desenharGestor(main, d){
     var q = busca.value.trim().toLowerCase(); corpo.textContent = '';
     d.usuarios.filter(function(u){ return !q || (u.nome + ' ' + u.login + ' ' + u.email).toLowerCase().indexOf(q) >= 0; }).forEach(function(u){
       var acoes = el('div', { style: 'display:flex;gap:6px;flex-wrap:wrap' });
+      if(d.master) u.perfis.split(',').filter(function(p){ return p !== 'gestor' && NOMES[p]; }).forEach(function(p){
+        acoes.appendChild(el('button', { type: 'button', class: 'mini', style: 'border-color:#0B63CE;color:#0B63CE', on: { click: function(e){ verComo(u, p, e.target); } } }, 'Ver como ' + NOMES[p]));
+      });
       {
         acoes.appendChild(el('button', { type: 'button', class: 'mini', on: { click: function(e){ mudar(u, u.status === 'Bloqueado' ? 'Ativo' : 'Bloqueado', e.target); } } }, u.status === 'Bloqueado' ? 'Desbloquear' : 'Bloquear'));
         acoes.appendChild(el('button', { type: 'button', class: 'mini red', on: { click: function(e){ mudar(u, u.status === 'Cancelado' ? 'Ativo' : 'Cancelado', e.target); } } }, u.status === 'Cancelado' ? 'Reativar' : 'Cancelar'));
