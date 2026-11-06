@@ -131,10 +131,11 @@ function api(dados){
 function voltarMaster(){
   var m = null; try { m = JSON.parse(sessionStorage.getItem('vivaSessaoMaster') || 'null'); } catch(e){}
   try { sessionStorage.removeItem('vivaSessaoMaster'); if(m) sessionStorage.setItem('vivaSessao', JSON.stringify(m)); else sessionStorage.removeItem('vivaSessao'); } catch(e){}
-  location.replace(m ? '/painel/' : '/#acesso');
+  if(m){ S = m; G.form = ''; window.scrollTo(0, 0); carregar(); } else location.replace('/#acesso');
 }
 function sairLocal(motivo){
   if(S && S.master){ voltarMaster(); return; }
+  limparCaches();
   try { sessionStorage.removeItem('vivaSessao'); } catch(e){}
   if(motivo) alertaTopo(motivo);
   location.replace('/#acesso/' + (S && S.perfil ? S.perfil : ''));
@@ -148,13 +149,13 @@ function verComo(u, perfil, btn){
       sessionStorage.setItem('vivaSessaoMaster', JSON.stringify(S));
       sessionStorage.setItem('vivaSessao', JSON.stringify({ token: r.token, perfil: r.perfil, nome: r.nome, master: true }));
     } catch(e){ ocupado(btn, false); return; }
-    location.reload();
+    S = JSON.parse(sessionStorage.getItem('vivaSessao')); window.scrollTo(0, 0); carregar();
   });
 }
 function faixaMaster(){
   return el('div', { role: 'status', style: 'background:#FEF3C7;color:#78350F;border-bottom:1px solid #FCD34D;padding:10px clamp(16px,3vw,32px);display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;font-size:14px' },
     el('span', null, el('strong', null, 'Acesso master: '), 'você está vendo o ambiente ' + (NOMES[S.perfil] || S.perfil) + ' de ' + S.nome + '. As ações feitas aqui ficam registradas em seu nome.'),
-    el('button', { type: 'button', class: 'btn', style: 'min-height:40px', on: { click: function(){ api({ api: 'sair' }).then(voltarMaster); } } }, 'Voltar ao painel do gestor'));
+    el('button', { type: 'button', class: 'btn', style: 'min-height:40px', on: { click: function(){ var t = S.token; try { sessionStorage.removeItem(chaveCache()); } catch(e){} voltarMaster(); fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify({ api: 'sair', token: t }) }).catch(function(){}); } } }, 'Voltar ao painel do gestor'));
 }
 function alertaTopo(t){ app.textContent = ''; app.appendChild(el('div', { class: 'load' }, t)); }
 
@@ -213,12 +214,37 @@ function baixarContrato(btn){
     });
   });
 }
+// Mostra na hora a última versão guardada nesta aba e atualiza em seguida (fica muito mais rápido)
+var ATUAL = null;
+function chaveCache(){ return 'vivaCache:' + String(S.token).slice(0, 16); }
+function salvarCache(r){ try { sessionStorage.setItem(chaveCache(), JSON.stringify(r)); } catch(e){} }
+function limparCaches(){ try { Object.keys(sessionStorage).forEach(function(k){ if(k.indexOf('vivaCache:') === 0) sessionStorage.removeItem(k); }); } catch(e){} }
+function render(r){
+  ATUAL = r; app.textContent = '';
+  if(S.master) app.appendChild(faixaMaster());
+  ({ gestor: gestor, empresa: empresa, cliente: cliente, financeiro: financeiro })[r.perfil](r);
+}
 function carregar(){
+  var c = null; try { c = JSON.parse(sessionStorage.getItem(chaveCache()) || 'null'); } catch(e){}
+  if(c) render(c); else alertaTopo('Carregando…');
   api({ api: 'painel' }).then(function(r){
-    if(!r.ok){ if(r.sessao !== false) alertaTopo(r.erro || 'Não foi possível carregar.'); return; }
-    app.textContent = '';
-    if(S.master) app.appendChild(faixaMaster());
-    ({ gestor: gestor, empresa: empresa, cliente: cliente, financeiro: financeiro })[r.perfil](r);
+    if(!r.ok){ if(r.sessao !== false && !c) alertaTopo(r.erro || 'Não foi possível carregar.'); return; }
+    if(c){ if(c.financeiro) r.financeiro = c.financeiro; if(c.pagamentos) r.pagamentos = c.pagamentos; }
+    if(c && JSON.stringify(c) === JSON.stringify(r)) r = ATUAL;
+    else if(!document.querySelector('.form')) render(r);
+    salvarCache(r);
+    complementar(r);
+  });
+}
+// dados do Asaas chegam numa 2ª chamada, sem travar a tela
+function complementar(r){
+  if(r.perfil === 'gestor') api({ api: 'gestorFinanceiro' }).then(function(x){
+    if(!x.ok) return; r.financeiro = x.financeiro; salvarCache(r);
+    var box = document.getElementById('finbox'); if(box && ATUAL === r){ box.textContent = ''; box.appendChild(secFinanceiro(r.financeiro)); }
+  });
+  if(r.perfil === 'empresa' || (r.perfil === 'cliente' && r.temPagamentos)) api({ api: 'pagamentos' }).then(function(x){
+    if(!x.ok) return; r.pagamentos = x.pagamentos; salvarCache(r);
+    if(ATUAL === r && !document.querySelector('.form')) render(r);
   });
 }
 
@@ -261,25 +287,13 @@ function desenharGestor(main, d){
 
   // regiões + financeiro
   var maxR = Math.max.apply(null, d.regioes.map(function(r){ return r.contratos; }).concat([1]));
-  var f = d.financeiro, maxM = Math.max.apply(null, f.meses.map(function(m){ return m.valor; }).concat([1]));
-  var ult = f.meses.length > 1 ? f.meses[f.meses.length - 2].valor : 0, cres = ult && f.recebidoMes ? ((f.recebidoMes - ult) / ult * 100) : null;
   main.appendChild(el('div', { class: 'grid2' },
     el('section', { class: 'card', id: 'regioes' }, el('h2', null, 'Contratos por região'),
       d.regioes.length ? d.regioes.map(function(r){
         return el('div', { class: 'reg' }, el('div', null, el('span', null, r.nome), el('span', null, r.contratos + (r.contratos === 1 ? ' contrato · ' : ' contratos · ') + r.vidas + (r.vidas === 1 ? ' vida' : ' vidas'))),
           el('div', { class: 'bar' }, el('i', { style: 'width:' + Math.round(r.contratos / maxR * 100) + '%' })));
       }) : el('p', { class: 'empty' }, 'Sem contratos ainda.')),
-    el('section', { class: 'card', id: 'financeiro' },
-      el('div', { class: 'row' }, el('h2', null, 'Faturamento recebido (Asaas)'), cres === null ? null : el('span', { style: 'font-size:13px;font-weight:600;color:' + (cres >= 0 ? '#2F6B12' : '#B91C1C') }, (cres >= 0 ? '+' : '') + cres.toFixed(1).replace('.', ',') + '% no mês')),
-      f.erro ? el('p', { class: 'note' }, f.erro) : null,
-      el('div', { class: 'chart', role: 'img', 'aria-label': 'Recebido por mês: ' + f.meses.map(function(m){ return m.mes + ' ' + brl(m.valor); }).join(', ') },
-        f.meses.map(function(m){ return el('div', null, el('small', null, brl(m.valor)), el('i', { style: 'height:' + Math.round(m.valor / maxM * 160) + 'px' })); })),
-      el('div', { class: 'months' }, f.meses.map(function(m){ return el('span', null, m.mes); })),
-      el('div', { class: 'boxes' },
-        el('div', { class: 'box' }, el('span', null, 'Recebido no mês'), el('strong', { style: 'color:#2F6B12' }, brl(f.recebidoMes))),
-        el('div', { class: 'box' }, el('span', null, 'A receber'), el('strong', null, brl(f.aReceber))),
-        el('div', { class: 'box' }, el('span', null, 'Vencido'), el('strong', { style: 'color:#B91C1C' }, brl(f.vencido))),
-        el('div', { class: 'box' }, el('span', null, 'Inadimplência'), el('strong', null, (f.aReceber + f.vencido + f.recebidoMes) ? (f.vencido / (f.aReceber + f.vencido + f.recebidoMes) * 100).toFixed(1).replace('.', ',') + '%' : '0%'))))));
+    el('div', { id: 'finbox' }, secFinanceiro(d.financeiro))));
 
   // carteiras
   var c = d.carteiras[G.carteira];
@@ -324,6 +338,22 @@ function desenharGestor(main, d){
       el('thead', null, el('tr', null, ['Nome','Perfil','Login','Vínculo','Último acesso','Status','Ações'].map(function(x){ return el('th', null, x); }))), corpo))));
   linhasUsu();
 }
+function secFinanceiro(f){
+  if(!f) return el('section', { class: 'card', id: 'financeiro' }, el('h2', null, 'Faturamento recebido (Asaas)'), el('p', { class: 'empty' }, 'Carregando dados do Asaas…'));
+  var maxM = Math.max.apply(null, f.meses.map(function(m){ return m.valor; }).concat([1]));
+  var ult = f.meses.length > 1 ? f.meses[f.meses.length - 2].valor : 0, cres = ult && f.recebidoMes ? ((f.recebidoMes - ult) / ult * 100) : null;
+  return el('section', { class: 'card', id: 'financeiro' },
+      el('div', { class: 'row' }, el('h2', null, 'Faturamento recebido (Asaas)'), cres === null ? null : el('span', { style: 'font-size:13px;font-weight:600;color:' + (cres >= 0 ? '#2F6B12' : '#B91C1C') }, (cres >= 0 ? '+' : '') + cres.toFixed(1).replace('.', ',') + '% no mês')),
+      f.erro ? el('p', { class: 'note' }, f.erro) : null,
+      el('div', { class: 'chart', role: 'img', 'aria-label': 'Recebido por mês: ' + f.meses.map(function(m){ return m.mes + ' ' + brl(m.valor); }).join(', ') },
+        f.meses.map(function(m){ return el('div', null, el('small', null, brl(m.valor)), el('i', { style: 'height:' + Math.round(m.valor / maxM * 160) + 'px' })); })),
+      el('div', { class: 'months' }, f.meses.map(function(m){ return el('span', null, m.mes); })),
+      el('div', { class: 'boxes' },
+        el('div', { class: 'box' }, el('span', null, 'Recebido no mês'), el('strong', { style: 'color:#2F6B12' }, brl(f.recebidoMes))),
+        el('div', { class: 'box' }, el('span', null, 'A receber'), el('strong', null, brl(f.aReceber))),
+        el('div', { class: 'box' }, el('span', null, 'Vencido'), el('strong', { style: 'color:#B91C1C' }, brl(f.vencido))),
+        el('div', { class: 'box' }, el('span', null, 'Inadimplência'), el('strong', null, (f.aReceber + f.vencido + f.recebidoMes) ? (f.vencido / (f.aReceber + f.vencido + f.recebidoMes) * 100).toFixed(1).replace('.', ',') + '%' : '0%'))));
+}
 function formGestor(main, d){
   var m = msgBox(), btn;
   if(G.form === 'empresa'){
@@ -360,7 +390,7 @@ function empresa(d){
   var page = el('main', { class: 'page' });
   app.appendChild(topo(d.nome));
   app.appendChild(page);
-  var c = d.contrato, abertos = d.pagamentos.filter(function(p){ return p.aberto; }), prox = abertos[abertos.length - 1];
+  var c = d.contrato, abertos = (d.pagamentos || []).filter(function(p){ return p.aberto; }), prox = abertos[abertos.length - 1];
   var tit = d.beneficiarios.filter(function(b){ return b.tipo === 'Titular'; });
   var btnPdf = el('button', { type: 'button', class: 'linkbtn', on: { click: function(){ baixarContrato(btnPdf); } } }, 'Baixar contrato e ficha (PDF)');
   page.appendChild(el('div', null, el('p', { class: 'eyebrow' }, 'Acesso Empresa · RH'), el('h1', null, 'Olá, ' + d.nome)));
@@ -410,6 +440,7 @@ function empresa(d){
 
   // financeiro
   page.appendChild(el('section', { class: 'card' }, el('h2', null, 'Financeiro'),
+    !d.pagamentos ? el('p', { class: 'empty' }, 'Carregando faturas…') :
     tabela(['Vencimento','Valor','Forma','Situação','Documento'], d.pagamentos.map(function(p){
       var u = seguro(p.aberto ? (p.boleto || p.pagar) : p.recibo);
       return el('tr', null, td(p.vencimento), td(brl(p.valor)), td(p.forma), el('td', null, badge(p.situacao)),
@@ -426,7 +457,8 @@ function cliente(d){
   if(d.semCadastro){ page.appendChild(el('section', { class: 'card' }, el('p', { class: 'empty' }, 'Ainda não encontramos o seu cadastro de beneficiário. Fale com o SAC pelo WhatsApp (11) 92592-3668.'))); return; }
   var k = d.carteirinha, wa = 'https://wa.me/' + d.sacWhatsapp + '?text=' + encodeURIComponent('Olá! Sou cliente Viva+ (protocolo ' + d.dados.protocolo + ') e preciso de ajuda.');
   var btnPdf = d.temContrato ? el('button', { type: 'button', style: 'background:#F1F5F9;color:#334155', on: { click: function(){ baixarContrato(btnPdf); } } }, 'Contrato (PDF)') : null;
-  var pagar = d.proxima && seguro(d.proxima.pagar);
+  var proxima = (d.pagamentos || []).filter(function(p){ return p.aberto; }).slice(-1)[0];
+  var pagar = proxima && seguro(proxima.pagar);
   page.appendChild(el('div', { class: 'flex' },
     el('section', { class: 'cardz', 'aria-label': 'Carteirinha digital' },
       el('span', { class: 'on' }, 'ATIVO'),
