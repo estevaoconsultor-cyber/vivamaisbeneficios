@@ -4202,9 +4202,26 @@
         if (e.key === 'Escape') modal.classList.remove('open');
       });
 
+      // Envia a solicitação de proposta para o WhatsApp comercial
+      const WHATS_PROPOSTA = '5511925923668';
       document.getElementById('lead-form').addEventListener('submit', (e) => {
         e.preventDefault();
-        alert('✅ Solicitação enviada com sucesso!\n\nNossa equipe entrará em contato em até 24 horas.');
+        const v = (id) => (document.getElementById(id).value || '').trim();
+        const texto = [
+          '*Nova solicitação de proposta — Viva+ Benefícios*',
+          '',
+          'Nome: ' + v('f-nome'),
+          'Empresa: ' + v('f-empresa'),
+          'Colaboradores: ' + v('f-colab'),
+          'Telefone / WhatsApp: ' + v('f-tel'),
+          'E-mail: ' + v('f-email'),
+          '',
+          'Enviado pelo site vivamaisbeneficios.app.br',
+        ].join('\n');
+        const url = 'https://wa.me/' + WHATS_PROPOSTA + '?text=' + encodeURIComponent(texto);
+        const janela = window.open(url, '_blank');
+        if (janela) janela.opener = null;
+        else window.location.href = url;   // navegador bloqueou a nova aba
         modal.classList.remove('open');
         e.target.reset();
       });
