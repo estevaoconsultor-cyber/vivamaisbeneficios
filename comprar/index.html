@@ -332,6 +332,13 @@ form.hide{display:none}
 .sticky .t b{display:block; font-family:'Poppins',sans-serif; font-size:1.15rem; color:var(--navy)}
 .sticky .go{width:auto; margin:0; padding:12px 22px; font-size:.95rem}
 .hidden{display:none!important}
+.wait{display:none; align-items:center; gap:12px; margin-top:14px; padding:13px 15px; border-radius:10px; background:rgba(11,99,206,.06); border:1px solid rgba(11,99,206,.22)}
+.wait.on{display:flex}
+.wait b{display:block; font-size:.9rem; color:var(--azul)}
+.wait small{display:block; font-size:.8rem; color:var(--cinza); margin-top:2px}
+.spin{flex:none; width:22px; height:22px; border-radius:50%; border:3px solid rgba(11,99,206,.2); border-top-color:var(--azul); animation:gira .8s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
 
 /* ---------- resumo no formulário ---------- */
 .pick{
@@ -592,6 +599,10 @@ form.hide{display:none}
     </label>
     <p class="hint pf-only">Você tem 7 dias corridos após a contratação para desistir, com devolução integral do que foi pago (art. 49 do Código de Defesa do Consumidor).</p>
     <button type="submit" class="send" id="btn">Concluir contratação</button>
+    <div class="wait" id="wait" role="status" aria-live="polite">
+      <span class="spin" aria-hidden="true"></span>
+      <div><b id="waitTit">Enviando seus dados e documentos…</b><small>Isso pode levar até 30 segundos. Não feche nem atualize esta página.</small></div>
+    </div>
     <div class="sendErr" id="sendErr"></div>
   </section>
 </form>
@@ -1180,11 +1191,21 @@ $('s2').addEventListener('submit', function(e){
   var sendErr = $('sendErr'); sendErr.classList.remove('on');
   var data = collect(); data.protocolo = gerarProtocolo();
   var btn = $('btn'), txtBtn = btn.textContent;
-  btn.disabled = true; btn.textContent = 'Enviando e gerando o contrato...';
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  var wait = $('wait'), etapas = [
+    [0, 'Enviando seus dados e documentos…'],
+    [6000, pf ? 'Gerando o seu contrato em PDF…' : 'Gerando o contrato e a ficha de vidas em PDF…'],
+    [16000, 'Enviando o e-mail de boas-vindas…'],
+    [30000, 'Quase lá… finalizando a sua contratação.']
+  ], timers = [];
+  wait.classList.add('on');
+  etapas.forEach(function(e){ timers.push(setTimeout(function(){ $('waitTit').textContent = e[1]; }, e[0])); });
+  function pararEspera(){ timers.forEach(clearTimeout); wait.classList.remove('on'); }
   function setWa(){ $('waLink').href = 'https://wa.me/' + CONFIG.whatsapp + '?text=' + encodeURIComponent(toText(data)); }
   setWa();
 
   function finish(saved){
+    pararEspera();
     var nome = pf ? data.titular.nome : data.rh.nome || data.representante.nome;
     var email = pf ? data.titular.email : data.empresa.email;
     var primeiro = (nome || '').split(' ')[0];
@@ -1205,6 +1226,7 @@ $('s2').addEventListener('submit', function(e){
     mostrar(3);
   }
   function fail(msg){
+    pararEspera();
     btn.disabled = false; btn.textContent = txtBtn;
     sendErr.textContent = msg || 'Não foi possível concluir o envio agora. Verifique sua conexão e toque em "Concluir" novamente. Seus dados continuam preenchidos.';
     sendErr.classList.add('on'); sendErr.scrollIntoView({ behavior: 'smooth', block: 'center' });

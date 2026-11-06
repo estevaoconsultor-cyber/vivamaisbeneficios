@@ -2426,6 +2426,46 @@
           padding: 8px 10px;
         }
       }
+
+      /* ---------- Dois planos ---------- */
+      .plan-wrap {
+        gap: 28px;
+        flex-wrap: wrap;
+        align-items: stretch;
+      }
+      .plan-wrap .plan-card {
+        flex: 1 1 380px;
+        max-width: 500px;
+        display: flex;
+        flex-direction: column;
+      }
+      .plan-wrap .plan-card .plan-list {
+        flex: 1;
+      }
+      .plan-wrap .plan-card > .plan-tag {
+        align-self: center;
+      }
+      .plan-name {
+        font-family: 'Poppins', sans-serif;
+        font-weight: 600;
+        font-size: 20px;
+        color: var(--escuro);
+        margin: 0 0 10px;
+      }
+      .plan-card.plan-od::before {
+        background: linear-gradient(135deg, var(--verde), var(--turquesa));
+      }
+      .plan-card.plan-od .plan-price {
+        color: var(--verde-dark);
+      }
+      .plan-card.plan-od .plan-tag {
+        background: var(--turquesa);
+      }
+      @media (max-width: 600px) {
+        .plan-wrap .plan-card {
+          padding: 36px 24px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -2709,19 +2749,19 @@
     <section id="plano">
       <div class="container">
         <div class="section-head fade-in-up">
-          <span class="overline azul">Plano Empresarial</span>
-          <h2>Um preço. Tudo incluso. Sem letras miúdas.</h2>
-          <p>Um único plano, com todos os benefícios inclusos e sem surpresas na fatura.</p>
+          <span class="overline azul">Planos</span>
+          <h2>Dois planos. Tudo claro. Sem letras miúdas.</h2>
+          <p>Escolha com ou sem odontologia — e decida por pessoa, inclusive para os dependentes.</p>
         </div>
         <div class="plan-wrap fade-in-up">
           <div class="plan-card">
             <span class="plan-tag">Mais escolhido</span>
+            <p class="plan-name">Nacional Premium</p>
             <div class="plan-price">R$ 44,90</div>
-            <p class="plan-per">por colaborador / mês</p>
+            <p class="plan-per">por pessoa / mês</p>
             <div class="plan-divider"></div>
             <ul class="plan-list">
               <li>Telemedicina 24h com +16 especialidades</li>
-              <li>Odontologia completa (Rol ANS)</li>
               <li>Farmácia com até 70% de desconto</li>
               <li>Saúde Mental e conformidade NR1</li>
               <li>Clube com +21 mil parceiros</li>
@@ -2733,7 +2773,35 @@
               <span>Sem carência</span>
               <span>Sem coparticipação</span>
               <span>Cancele quando quiser</span>
-              <span>Inclui dependentes</span>
+              <span>Aceita dependentes</span>
+            </div>
+            <a class="btn btn-verde btn-lg" href="comprar/" style="width: 100%; margin-bottom: 10px">Comprar agora</a>
+            <button class="btn btn-azul btn-lg open-modal" type="button" style="width: 100%">
+              Solicitar Proposta Personalizada
+            </button>
+            <p class="plan-note">Descontos progressivos a partir de 50 colaboradores. Fale com um consultor.</p>
+          </div>
+          <div class="plan-card plan-od">
+            <span class="plan-tag">Com odontologia</span>
+            <p class="plan-name">Nacional Premium + Odonto</p>
+            <div class="plan-price">R$ 59,90</div>
+            <p class="plan-per">por pessoa / mês</p>
+            <div class="plan-divider"></div>
+            <ul class="plan-list">
+              <li><strong>Odontologia completa com rede nacional (Rol ANS)</strong></li>
+              <li>Telemedicina 24h com +16 especialidades</li>
+              <li>Farmácia com até 70% de desconto</li>
+              <li>Saúde Mental e conformidade NR1</li>
+              <li>Clube com +21 mil parceiros</li>
+              <li>Carteirinha digital para toda família</li>
+              <li>Dashboard de gestão para o RH</li>
+              <li>Suporte humanizado 8h às 22h</li>
+            </ul>
+            <div class="plan-badges">
+              <span>Sem carência</span>
+              <span>Sem coparticipação</span>
+              <span>Cancele quando quiser</span>
+              <span>Aceita dependentes</span>
             </div>
             <a class="btn btn-verde btn-lg" href="comprar/" style="width: 100%; margin-bottom: 10px">Comprar agora</a>
             <button class="btn btn-azul btn-lg open-modal" type="button" style="width: 100%">
