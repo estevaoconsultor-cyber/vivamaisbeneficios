@@ -220,6 +220,7 @@ form.hide{display:none}
 .done .note{font-size:.8rem; color:var(--cinza); margin:14px auto 0}
 
 
+
 /* =====================================================================
    COMPRA — tela de customização do plano
    ===================================================================== */
@@ -332,6 +333,10 @@ form.hide{display:none}
 .sticky .t b{display:block; font-family:'Poppins',sans-serif; font-size:1.15rem; color:var(--navy)}
 .sticky .go{width:auto; margin:0; padding:12px 22px; font-size:.95rem}
 .hidden{display:none!important}
+.depbox{margin-top:14px; font-size:.86rem; color:var(--navy); background:#fff; border:1.5px dashed var(--linha); border-radius:10px; padding:11px 13px}
+.opts{display:flex; gap:16px; flex-wrap:wrap; align-items:center}
+.opts .sw small{font-weight:500; color:var(--cinza)}
+.lim{font-size:.8rem; color:var(--cinza); text-align:center; padding:6px}
 .wait{display:none; align-items:center; gap:12px; margin-top:14px; padding:13px 15px; border-radius:10px; background:rgba(11,99,206,.06); border:1px solid rgba(11,99,206,.22)}
 .wait.on{display:flex}
 .wait b{display:block; font-size:.9rem; color:var(--azul)}
@@ -400,16 +405,16 @@ form.hide{display:none}
       <div class="planos">
         <div class="pl">
           <b>Nacional Premium</b>
-          <div class="pr">R$ 44,90 <small>por vida/mês</small></div>
+          <div class="pr">R$ 44,90 <small>por titular/mês</small></div>
           <ul><li>Telemedicina 24h</li><li>Descontos em farmácias</li><li>Saúde mental</li><li>Clube de vantagens</li><li>Carteirinha digital no app</li></ul>
         </div>
         <div class="pl od">
           <b>Nacional Premium + Odonto</b>
-          <div class="pr">R$ 59,90 <small>por vida/mês</small></div>
+          <div class="pr">R$ 59,90 <small>por titular/mês</small></div>
           <ul><li>Tudo do Nacional Premium</li><li>Plano odontológico com rede nacional</li><li>Cobertura do Rol da ANS</li></ul>
         </div>
       </div>
-      <p class="info" style="margin-top:14px">Você escolhe o odonto <b>por pessoa</b>: é só ligar ou desligar a opção em cada uma abaixo.</p>
+      <div class="depbox"><b>Dependentes</b> (até 4 por titular): cada um escolhe <b>Telemedicina + R$ 14,90</b> e/ou <b>Odonto + R$ 14,90</b> — uma opção ou as duas.</div>
     </section>
 
     <section class="card">
@@ -425,7 +430,7 @@ form.hide{display:none}
           <button type="button" id="bulkAdd">Adicionar</button>
         </div>
       </div>
-      <p class="rule">Dependente <b>menor de 18 anos</b> só pode ter odonto se o titular também tiver. Dependente <b>maior de idade</b> pode ter odonto mesmo que o titular não tenha.</p>
+      <p class="rule">Até <b>4 dependentes por titular</b>. Dependente <b>menor de 18 anos</b> só pode ter odonto se o titular também tiver. Dependente <b>maior de idade</b> pode ter odonto mesmo que o titular não tenha.</p>
     </section>
 
     <section class="card">
@@ -664,8 +669,11 @@ var CONFIG = {
   whatsapp: '5511932062114',
 
   // Preço por vida/mês do plano Nacional Premium
-  precoSemOdonto: 44.90,
-  precoComOdonto: 59.90,
+  precoSemOdonto: 44.90,   // titular sem odonto
+  precoComOdonto: 59.90,   // titular com odonto
+  precoDepTele: 14.90,     // por dependente: telemedicina
+  precoDepOdonto: 14.90,   // por dependente: odonto
+  maxDependentes: 4,       // por titular
 
   // URL do App da Web do Google Apps Script (termina em /exec).
   // É ele que grava no Drive, gera os contratos em PDF e envia os e-mails.
@@ -701,7 +709,7 @@ function plural(n, s, p){ return n + ' ' + (n === 1 ? s : p); }
 var S = { tipo: null, grupos: [] };   // grupo = titular/colaborador { odonto, deps:[{parentesco, menor, odonto}] }
 var uid = 0;
 function novoGrupo(od){ return { id: ++uid, odonto: !!od, deps: [] }; }
-function novoDep(){ return { id: ++uid, parentesco: '', menor: null, odonto: false }; }
+function novoDep(){ return { id: ++uid, parentesco: '', menor: null, tele: true, odonto: false }; }
 
 document.querySelectorAll('.tipo button').forEach(function(b){
   b.addEventListener('click', function(){ escolherTipo(b.dataset.tipo); });
@@ -721,16 +729,24 @@ function escolherTipo(t){
 }
 
 function aplicarRegra(g){
-  g.deps.forEach(function(d){ if(d.menor === true && !g.odonto) d.odonto = false; });
+  g.deps.forEach(function(d){
+    if(d.menor === true && !g.odonto) d.odonto = false;
+    if(!d.tele && !d.odonto) d.tele = true;          // dependente precisa ter ao menos uma opção
+  });
 }
 function precoVida(od){ return od ? CONFIG.precoComOdonto : CONFIG.precoSemOdonto; }
+function precoDep(d){ return (d.tele ? CONFIG.precoDepTele : 0) + (d.odonto ? CONFIG.precoDepOdonto : 0); }
+function opcoesDep(d){ return d.tele && d.odonto ? 'Telemedicina + Odonto' : d.odonto ? 'Só odonto' : 'Só telemedicina'; }
 function totais(){
-  var com = 0, sem = 0;
+  var tc = 0, ts = 0, dt = 0, dodo = 0, nd = 0;
   S.grupos.forEach(function(g){
-    g.odonto ? com++ : sem++;
-    g.deps.forEach(function(d){ d.odonto ? com++ : sem++; });
+    g.odonto ? tc++ : ts++;
+    g.deps.forEach(function(d){ nd++; if(d.tele) dt++; if(d.odonto) dodo++; });
   });
-  return { vidas: com + sem, com: com, sem: sem, total: +(com * CONFIG.precoComOdonto + sem * CONFIG.precoSemOdonto).toFixed(2) };
+  var total = tc * CONFIG.precoComOdonto + ts * CONFIG.precoSemOdonto + dt * CONFIG.precoDepTele + dodo * CONFIG.precoDepOdonto;
+  var comOd = tc + dodo;
+  return { vidas: tc + ts + nd, titulares: tc + ts, titCom: tc, titSem: ts, dependentes: nd, depTele: dt, depOdonto: dodo,
+           com: comOd, sem: tc + ts + nd - comOd, total: Math.round(total * 100) / 100 };
 }
 
 function swHtml(checked, disabled, act, label){
@@ -747,8 +763,11 @@ function depHtml(g, d, i){
       '<select data-act="idade" aria-label="Idade">' + ida + '</select>' +
     '</div>' +
     '<div class="vida-row" style="margin-top:10px">' +
-      swHtml(d.odonto, bloq || d.menor === null, 'dodonto', 'Incluir odonto') +
-      '<span class="preco" style="margin-left:auto">' + money(precoVida(d.odonto)) + '</span>' +
+      '<div class="opts">' +
+        swHtml(d.tele, false, 'dtele', 'Telemedicina <small>+ ' + money(CONFIG.precoDepTele) + '</small>') +
+        swHtml(d.odonto, bloq || d.menor === null, 'dodonto', 'Odonto <small>+ ' + money(CONFIG.precoDepOdonto) + '</small>') +
+      '</div>' +
+      '<span class="preco" style="margin-left:auto">' + money(precoDep(d)) + '</span>' +
       '<button type="button" class="rm" data-act="rmdep">Remover</button>' +
     '</div>' +
     (bloq ? '<div class="rule">Para incluir odonto neste dependente menor de idade, ative o odonto do ' + (S.tipo === 'pj' ? 'colaborador' : 'titular') + '.</div>' : '') +
@@ -766,19 +785,29 @@ function render(){
         (S.tipo === 'pj' && S.grupos.length > 1 ? '<button type="button" class="rm" data-act="rmg">Remover</button>' : '') +
       '</div>' +
       '<div class="sub">' + g.deps.map(function(d, i){ return depHtml(g, d, i); }).join('') +
-        '<button type="button" class="add sm" data-act="adddep">+ Adicionar dependente</button>' +
+        (g.deps.length < CONFIG.maxDependentes
+          ? '<button type="button" class="add sm" data-act="adddep">+ Adicionar dependente <small>(' + g.deps.length + ' de ' + CONFIG.maxDependentes + ')</small></button>'
+          : '<div class="lim">Limite de ' + CONFIG.maxDependentes + ' dependentes por titular atingido.</div>') +
       '</div>' +
     '</div>';
   });
   box.innerHTML = html;
   atualizarResumo();
 }
+function avisoOpcao(el){
+  render();
+  var box = document.querySelector('[data-d="' + el.dataset.d + '"]');
+  if(!box) return;
+  var r = document.createElement('div'); r.className = 'rule';
+  r.textContent = 'Escolha ao menos uma opção para o dependente: telemedicina, odonto ou as duas.';
+  box.appendChild(r);
+}
 function acharG(id){ return S.grupos.filter(function(g){ return g.id === +id; })[0]; }
 
 $('vidas').addEventListener('click', function(e){
   var el = e.target.closest('[data-act]'); if(!el || el.tagName === 'INPUT' || el.tagName === 'SELECT') return;
   var gEl = el.closest('[data-g]'), g = acharG(gEl.dataset.g);
-  if(el.dataset.act === 'adddep'){ g.deps.push(novoDep()); render(); }
+  if(el.dataset.act === 'adddep'){ if(g.deps.length < CONFIG.maxDependentes) g.deps.push(novoDep()); render(); }
   if(el.dataset.act === 'rmdep'){ var dId = +el.closest('[data-d]').dataset.d; g.deps = g.deps.filter(function(d){ return d.id !== dId; }); render(); }
   if(el.dataset.act === 'rmg'){ S.grupos = S.grupos.filter(function(x){ return x !== g; }); render(); }
 });
@@ -787,7 +816,8 @@ $('vidas').addEventListener('change', function(e){
   var g = acharG(el.closest('[data-g]').dataset.g);
   var dEl = el.closest('[data-d]'), d = dEl ? g.deps.filter(function(x){ return x.id === +dEl.dataset.d; })[0] : null;
   if(act === 'godonto'){ g.odonto = el.checked; aplicarRegra(g); }
-  if(act === 'dodonto'){ d.odonto = el.checked; }
+  if(act === 'dodonto'){ d.odonto = el.checked; if(!d.odonto && !d.tele) d.tele = true; }
+  if(act === 'dtele'){ d.tele = el.checked; if(!d.tele && !d.odonto){ d.tele = true; avisoOpcao(dEl); return; } }
   if(act === 'par'){
     d.parentesco = el.value;
     if((el.value === 'Cônjuge / companheiro(a)' || el.value === 'Pai / Mãe') && d.menor === null) d.menor = false;
@@ -806,8 +836,11 @@ $('bulkAdd').addEventListener('click', function(){
 
 function atualizarResumo(){
   var t = totais(), L = [];
-  if(t.com) L.push('<div class="ln"><span>' + plural(t.com, 'vida', 'vidas') + ' com odonto × ' + money(CONFIG.precoComOdonto) + '</span><b>' + money(t.com * CONFIG.precoComOdonto) + '</b></div>');
-  if(t.sem) L.push('<div class="ln"><span>' + plural(t.sem, 'vida', 'vidas') + ' sem odonto × ' + money(CONFIG.precoSemOdonto) + '</span><b>' + money(t.sem * CONFIG.precoSemOdonto) + '</b></div>');
+  function ln(q, txt, preco){ if(q) L.push('<div class="ln"><span>' + q + ' × ' + txt + ' (' + money(preco) + ')</span><b>' + money(q * preco) + '</b></div>'); }
+  ln(t.titSem, t.titSem === 1 ? 'titular sem odonto' : 'titulares sem odonto', CONFIG.precoSemOdonto);
+  ln(t.titCom, t.titCom === 1 ? 'titular com odonto' : 'titulares com odonto', CONFIG.precoComOdonto);
+  ln(t.depTele, 'telemedicina de dependente', CONFIG.precoDepTele);
+  ln(t.depOdonto, 'odonto de dependente', CONFIG.precoDepOdonto);
   $('resumo').innerHTML = L.join('');
   var tv = plural(t.vidas, 'vida', 'vidas');
   $('rsVidas').textContent = tv; $('rsTotal').textContent = money(t.total);
@@ -920,7 +953,7 @@ var SEXO = '<select class="CLS"><option value="">Selecione</option><option>Femin
 function benHtml(p){
   // p = { key, titulo, tag, odonto, dep, parentesco, menor, pj }
   var h = '<div class="ben' + (p.dep && p.pj ? ' dep-of' : '') + '" data-key="' + p.key + '"' + (p.dep ? ' data-menor="' + (p.menor ? 1 : 0) + '"' : '') + '>' +
-    '<div class="ben-head"><strong>' + esc(p.titulo) + '</strong><span><span class="tag' + (p.odonto ? ' od' : '') + '">' + (p.odonto ? 'Com odonto' : 'Sem odonto') + '</span>' +
+    '<div class="ben-head"><strong>' + esc(p.titulo) + '</strong><span><span class="tag' + (p.odonto ? ' od' : '') + '">' + (p.dep ? esc(p.opcoes) : (p.odonto ? 'Com odonto' : 'Sem odonto')) + '</span>' +
     (p.dep ? ' <span class="tag">' + esc(p.parentesco) + ' · ' + (p.menor ? 'menor de 18' : '18 anos ou mais') + '</span>' : '') + '</span></div>' +
     '<div class="grid">' +
       campo('Nome completo', 'b-nome', IN('text'), true, 'Informe o nome completo.') +
@@ -938,7 +971,7 @@ function montarTela2(){
   document.querySelectorAll('.pf-only').forEach(function(el){ el.classList.toggle('hidden', !pf); });
   document.querySelectorAll('.pj-only').forEach(function(el){ el.classList.toggle('hidden', pf); });
   var t = totais();
-  var desc = plural(t.vidas, 'vida', 'vidas') + ' · ' + money(t.total) + '/mês' + (t.com ? ' · ' + t.com + ' com odonto' : '');
+  var desc = plural(t.titulares, 'titular', 'titulares') + (t.dependentes ? ' + ' + plural(t.dependentes, 'dependente', 'dependentes') : '') + ' · ' + money(t.total) + '/mês';
   $('pickPf').innerHTML = '<b>Pessoa física</b> · ' + esc(desc);
   $('pickPj').innerHTML = '<b>Empresa</b> · ' + esc(desc);
 
@@ -950,7 +983,7 @@ function montarTela2(){
 
   if(pf){
     var g = S.grupos[0], h = '';
-    g.deps.forEach(function(d, i){ h += benHtml({ key: 'd' + d.id, titulo: 'Dependente ' + (i + 1), odonto: d.odonto, dep: true, parentesco: d.parentesco, menor: d.menor, pj: false }); });
+    g.deps.forEach(function(d, i){ h += benHtml({ key: 'd' + d.id, titulo: 'Dependente ' + (i + 1), odonto: d.odonto, opcoes: opcoesDep(d), dep: true, parentesco: d.parentesco, menor: d.menor, pj: false }); });
     $('pfDeps').innerHTML = h;
     $('pfDepsCard').classList.toggle('hidden', !g.deps.length);
     $('pjBens').innerHTML = '';
@@ -958,7 +991,7 @@ function montarTela2(){
     var h2 = '';
     S.grupos.forEach(function(g, gi){
       h2 += benHtml({ key: 'g' + g.id, titulo: 'Colaborador ' + (gi + 1), odonto: g.odonto, dep: false, pj: true });
-      g.deps.forEach(function(d, i){ h2 += benHtml({ key: 'd' + d.id, titulo: 'Dependente ' + (i + 1) + ' do colaborador ' + (gi + 1), odonto: d.odonto, dep: true, parentesco: d.parentesco, menor: d.menor, pj: true }); });
+      g.deps.forEach(function(d, i){ h2 += benHtml({ key: 'd' + d.id, titulo: 'Dependente ' + (i + 1) + ' do colaborador ' + (gi + 1), odonto: d.odonto, opcoes: opcoesDep(d), dep: true, parentesco: d.parentesco, menor: d.menor, pj: true }); });
     });
     $('pjBens').innerHTML = h2;
     $('pfDeps').innerHTML = '';
@@ -987,8 +1020,13 @@ function montarTela2(){
   pg.innerHTML = '<option value="">Selecione</option>' + ops.map(function(o){ return '<option>' + o + '</option>'; }).join('');
   if(ops.indexOf(atual) >= 0) pg.value = atual;
 
-  $('fVidas').textContent = plural(t.vidas, 'vida', 'vidas') + (pf ? ' (titular + dependentes)' : ' · ' + plural(S.grupos.length, 'colaborador', 'colaboradores'));
-  $('fDet').textContent = [t.com ? t.com + ' com odonto (' + money(CONFIG.precoComOdonto) + ')' : '', t.sem ? t.sem + ' sem odonto (' + money(CONFIG.precoSemOdonto) + ')' : ''].filter(Boolean).join(' · ');
+  $('fVidas').textContent = plural(t.titulares, 'titular', 'titulares') + ' + ' + plural(t.dependentes, 'dependente', 'dependentes');
+  $('fDet').textContent = [
+    t.titSem ? t.titSem + ' sem odonto (' + money(CONFIG.precoSemOdonto) + ')' : '',
+    t.titCom ? t.titCom + ' com odonto (' + money(CONFIG.precoComOdonto) + ')' : '',
+    t.depTele ? t.depTele + ' telemedicina dep. (' + money(CONFIG.precoDepTele) + ')' : '',
+    t.depOdonto ? t.depOdonto + ' odonto dep. (' + money(CONFIG.precoDepOdonto) + ')' : ''
+  ].filter(Boolean).join(' · ');
   $('fTotal').textContent = money(t.total);
 
   $('lnkContrato').href = pf ? CONFIG.contratoPF : CONFIG.contratoPJ;
@@ -1107,8 +1145,11 @@ function collect(){
   var out = {
     tipo: S.tipo,
     plano: {
-      nome: 'Nacional Premium', vidas: t.vidas, comOdonto: t.com, semOdonto: t.sem,
+      nome: 'Nacional Premium', vidas: t.vidas, titulares: t.titulares, dependentes: t.dependentes,
+      titularesComOdonto: t.titCom, titularesSemOdonto: t.titSem, depTelemedicina: t.depTele, depOdonto: t.depOdonto,
+      comOdonto: t.com, semOdonto: t.sem,
       precoComOdonto: CONFIG.precoComOdonto, precoSemOdonto: CONFIG.precoSemOdonto,
+      precoDepTele: CONFIG.precoDepTele, precoDepOdonto: CONFIG.precoDepOdonto,
       valorMensal: t.total, pagamento: val('pgto'), vencimento: val('venc')
     },
     aceites: { contrato: true, lgpd: true, veracidade: true },
@@ -1123,7 +1164,7 @@ function collect(){
     };
     out.dependentes = g.deps.map(function(d){
       var b = lerBen(document.querySelector('.ben[data-key="d' + d.id + '"]'));
-      return { nome: b.nome, cpf: b.cpf, nascimento: b.nascimento, parentesco: d.parentesco, menor: d.menor, odonto: d.odonto };
+      return { nome: b.nome, cpf: b.cpf, nascimento: b.nascimento, parentesco: d.parentesco, menor: d.menor, tele: d.tele, odonto: d.odonto };
     });
   } else {
     out.empresa = {
@@ -1135,10 +1176,10 @@ function collect(){
     out.beneficiarios = [];
     S.grupos.forEach(function(g){
       var tb = lerBen(document.querySelector('.ben[data-key="g' + g.id + '"]'));
-      out.beneficiarios.push({ nome: tb.nome, cpf: tb.cpf, nascimento: tb.nascimento, sexo: tb.sexo, email: tb.email, celular: tb.celular, tipo: 'Titular', parentesco: '—', titular: tb.nome, odonto: g.odonto });
+      out.beneficiarios.push({ nome: tb.nome, cpf: tb.cpf, nascimento: tb.nascimento, sexo: tb.sexo, email: tb.email, celular: tb.celular, tipo: 'Titular', parentesco: '—', titular: tb.nome, tele: true, odonto: g.odonto });
       g.deps.forEach(function(d){
         var b = lerBen(document.querySelector('.ben[data-key="d' + d.id + '"]'));
-        out.beneficiarios.push({ nome: b.nome, cpf: b.cpf, nascimento: b.nascimento, sexo: b.sexo, email: b.email, celular: b.celular, tipo: 'Dependente', parentesco: d.parentesco, titular: tb.nome, menor: d.menor, odonto: d.odonto });
+        out.beneficiarios.push({ nome: b.nome, cpf: b.cpf, nascimento: b.nascimento, sexo: b.sexo, email: b.email, celular: b.celular, tipo: 'Dependente', parentesco: d.parentesco, titular: tb.nome, menor: d.menor, tele: d.tele, odonto: d.odonto });
       });
     });
   }
@@ -1153,7 +1194,7 @@ function toText(x){
       'E-mail: ' + t.email, 'Celular: ' + t.celular, 'Endereço: ' + t.endereco + ' — ' + t.cidade + '/' + t.uf + ' — CEP ' + t.cep);
     if(x.dependentes.length){
       L.push('', '*Dependentes (' + x.dependentes.length + ')*');
-      x.dependentes.forEach(function(d, i){ L.push((i+1) + '. ' + d.nome + ' — ' + d.cpf + ' — ' + dataBR(d.nascimento) + ' — ' + d.parentesco + (d.odonto ? ' — com odonto' : '')); });
+      x.dependentes.forEach(function(d, i){ L.push((i+1) + '. ' + d.nome + ' — ' + d.cpf + ' — ' + dataBR(d.nascimento) + ' — ' + d.parentesco + ' — ' + (d.tele && d.odonto ? 'telemedicina + odonto' : d.odonto ? 'só odonto' : 'só telemedicina')); });
     }
   } else {
     var e = x.empresa;
@@ -1161,10 +1202,10 @@ function toText(x){
       'Endereço: ' + e.endereco + ' — ' + e.cidade + '/' + e.uf + ' — CEP ' + e.cep,
       'Representante: ' + x.representante.nome + ' (' + x.representante.cargo + ') — CPF ' + x.representante.cpf, 'RH: ' + x.rh.nome + ' (' + x.rh.cargo + ')', '',
       '*Beneficiários (' + x.beneficiarios.length + ')*');
-    x.beneficiarios.forEach(function(b, i){ L.push((i+1) + '. ' + b.nome + ' — ' + b.cpf + ' — ' + b.tipo + (b.tipo === 'Dependente' ? ' (' + b.parentesco + ' de ' + b.titular + ')' : '') + (b.odonto ? ' — com odonto' : '')); });
+    x.beneficiarios.forEach(function(b, i){ L.push((i+1) + '. ' + b.nome + ' — ' + b.cpf + ' — ' + b.tipo + (b.tipo === 'Dependente' ? ' (' + b.parentesco + ' de ' + b.titular + ') — ' + (b.tele && b.odonto ? 'telemedicina + odonto' : b.odonto ? 'só odonto' : 'só telemedicina') : (b.odonto ? ' — com odonto' : ' — sem odonto'))); });
   }
   var p = x.plano;
-  L.push('', '*Plano Nacional Premium*', 'Vidas: ' + p.vidas + ' (' + p.comOdonto + ' com odonto, ' + p.semOdonto + ' sem odonto)',
+  L.push('', '*Plano Nacional Premium*', 'Vidas: ' + p.vidas + ' (' + p.titulares + (p.titulares === 1 ? ' titular' : ' titulares') + ', ' + p.dependentes + (p.dependentes === 1 ? ' dependente' : ' dependentes') + ')',
     'Valor mensal: ' + money(p.valorMensal), 'Pagamento: ' + p.pagamento + ' — vencimento dia ' + p.vencimento, '', 'Aceites: contrato, LGPD e veracidade confirmados.');
   if(x.protocolo) L.push('', 'Protocolo: ' + x.protocolo);
   return L.join('\n');
