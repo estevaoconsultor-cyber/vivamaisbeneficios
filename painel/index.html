@@ -105,6 +105,7 @@ label.c input{width:18px;height:18px}
 .dep small{display:block;font-size:12.5px;color:var(--cinza)}
 .flex{display:flex;flex-wrap:wrap;gap:20px;align-items:stretch}
 .pay{display:flex;flex-wrap:wrap;gap:18px;align-items:center;justify-content:space-between}
+.card.pay{flex-direction:row}
 .empty{color:var(--cinza);font-size:14px;padding:6px 0}
 @media (max-width:640px){.side{border-right:0;border-bottom:1px solid var(--linha)}.me{margin-top:0}}
 </style>
@@ -116,6 +117,7 @@ label.c input{width:18px;height:18px}
 'use strict';
 var API = 'https://script.google.com/macros/s/AKfycbyi9OkzuqHJ5NsLBtOaC8-NTS1B18OLM2O9ND3SWrlQPILJpYQ2jAQ2MBlKvG2q4Q3l/exec';
 var LOGO = 'logo.png';
+var APP_URL = 'https://appvivamais.vercel.app/';
 var NOMES = { gestor: 'Gestor', empresa: 'Empresa', cliente: 'Cliente', financeiro: 'Financeiro' };
 var app = document.getElementById('app');
 var S = null; try { S = JSON.parse(sessionStorage.getItem('vivaSessao') || 'null'); } catch(e){}
@@ -467,11 +469,17 @@ function cliente(d){
         el('div', { class: 'meta' }, el('div', null, el('div', null, 'CPF'), el('div', null, k.cpf)), el('div', null, el('div', null, 'Nº da carteirinha'), el('div', null, k.numero)), el('div', null, el('div', null, 'Desde'), el('div', null, k.desde))))),
     el('section', { class: 'card', style: 'flex:1 1 300px' }, el('h2', null, 'Atalhos'),
       el('div', { class: 'atalhos' },
-        el('a', { href: '/#app', style: 'background:#EAF2FC;color:#0B63CE' }, 'Baixar o app'),
+        el('a', { href: APP_URL, target: '_blank', rel: 'noopener', style: 'background:#EAF2FC;color:#0B63CE' }, 'Baixar o app'),
         el('a', { href: wa, target: '_blank', rel: 'noopener noreferrer', style: 'background:#E8F5E0;color:#2F6B12' }, 'SAC no WhatsApp'),
         pagar ? el('a', { href: pagar, target: '_blank', rel: 'noopener noreferrer', style: 'background:#FFF4E5;color:#9A3412' }, 'Pagar / 2ª via') : el('a', { href: '/#acesso/financeiro', style: 'background:#FFF4E5;color:#9A3412' }, '2ª via / pagamentos'),
         btnPdf),
       el('p', { class: 'note' }, 'Emergência? Ligue 192 (SAMU). A telemedicina é para casos sem urgência.'))));
+  page.appendChild(el('section', { class: 'card pay', 'aria-label': 'App Viva+' },
+    el('div', { style: 'display:flex;flex-direction:column;gap:6px;max-width:560px' },
+      el('h2', null, 'Baixe o app Viva+'),
+      el('p', { class: 'note', style: 'font-size:14px;color:#334155' }, 'Telemedicina, carteirinha digital e clube de vantagens no seu celular. Entre com o mesmo CPF e senha deste portal.'),
+      el('p', { class: 'note' }, 'Dica: no celular, abra o app e toque em "Adicionar à tela inicial" (Safari: botão Compartilhar; Chrome: menu ⋮) para ele ficar como um aplicativo.')),
+    el('a', { class: 'btn green', href: APP_URL, target: '_blank', rel: 'noopener' }, 'Baixar o app')));
   var dd = d.dados, pl = d.plano;
   page.appendChild(el('div', { class: 'grid2' },
     el('section', { class: 'card', style: 'gap:4px' }, el('h2', { style: 'margin-bottom:8px' }, 'Meus dados'),
