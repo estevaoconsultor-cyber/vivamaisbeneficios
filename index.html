@@ -1951,6 +1951,12 @@
         font: 600 14px 'Inter', sans-serif;
         cursor: pointer;
       }
+      .ac-primeiro {
+        margin: 2px 0 0;
+        text-align: center;
+        font-size: 0.9rem;
+        color: var(--cinza, #64748b);
+      }
       .ac-link:hover {
         text-decoration: underline;
       }
@@ -3528,6 +3534,7 @@
                 <button type="button" class="ac-link" data-go="reset1">Esqueci / redefinir senha</button>
               </div>
               <button type="submit" class="btn btn-azul btn-lg" style="width: 100%" id="lg-btn">Entrar</button>
+              <p class="ac-primeiro">Primeiro acesso? <button type="button" class="ac-link" data-go="primeiro">Crie sua senha</button></p>
               <div class="ac-msg" id="lg-msg"></div>
             </form>
             <div class="ac-safe">
@@ -3540,7 +3547,7 @@
           <section class="ac-view" id="v-reset1">
             <button type="button" class="ac-back" data-go="login">← Voltar ao login</button>
             <div class="ac-steps"><i class="on"></i><i></i><i></i></div>
-            <h1>Redefinir senha</h1>
+            <h1 id="r1-title">Redefinir senha</h1>
             <p class="ac-lead" id="r1-sub">Informe seus dados e enviaremos um código de verificação para o e-mail cadastrado.</p>
             <form class="ac-form" id="r1-form" novalidate>
               <div class="form-field">
@@ -3557,7 +3564,7 @@
           <section class="ac-view" id="v-reset2">
             <button type="button" class="ac-back" data-go="reset1">← Voltar</button>
             <div class="ac-steps"><i class="on"></i><i class="on"></i><i></i></div>
-            <h1>Crie uma nova senha</h1>
+            <h1 id="r2-title">Crie uma nova senha</h1>
             <p class="ac-lead" id="r2-sub">Digite o código de 6 dígitos que enviamos para o seu e-mail.</p>
             <form class="ac-form" id="r2-form" novalidate>
               <div class="form-field">
@@ -3593,8 +3600,8 @@
           <section class="ac-view ac-done" id="v-reset3">
             <div class="ac-steps"><i class="on"></i><i class="on"></i><i class="on"></i></div>
             <div class="tick">✓</div>
-            <h1>Senha redefinida!</h1>
-            <p class="ac-lead">Pronto. Use a nova senha para entrar na sua conta.</p>
+            <h1 id="r3-title">Senha redefinida!</h1>
+            <p class="ac-lead" id="r3-sub">Pronto. Use a nova senha para entrar na sua conta.</p>
             <button type="button" class="btn btn-azul btn-lg" style="width: 100%" data-go="login">Ir para o login</button>
           </section>
         </div>
@@ -3969,10 +3976,23 @@
         }
         window.addEventListener('hashchange', rota);
 
+        // "Primeiro acesso" usa o mesmo caminho do código por e-mail, só muda os textos
+        var TEXTOS_SENHA = {
+          redefinir: ['Redefinir senha', 'Crie uma nova senha', 'Senha redefinida!', 'Pronto. Use a nova senha para entrar na sua conta.'],
+          primeiro: ['Primeiro acesso', 'Crie a sua senha', 'Senha criada!', 'Pronto. Use a senha que você criou para entrar na sua conta.']
+        };
+        function modoSenha(m) {
+          var t = TEXTOS_SENHA[m];
+          $('r1-title').textContent = t[0]; $('r2-title').textContent = t[1];
+          $('r3-title').textContent = t[2]; $('r3-sub').textContent = t[3];
+        }
+
         // botões de voltar / avançar
         ac.querySelectorAll('[data-go]').forEach(function (b) {
           b.addEventListener('click', function () {
             var go = b.dataset.go;
+            if (go === 'primeiro') { modoSenha('primeiro'); go = 'reset1'; }
+            else if (go === 'reset1' && b.classList.contains('ac-link')) modoSenha('redefinir');
             if (go === 'escolha') location.hash = 'acesso';
             else if (go === 'login') { if (location.hash !== '#acesso/' + perfilAtual) location.hash = 'acesso/' + perfilAtual; else mostrar('login'); }
             else if (go === 'reset1') { if (location.hash !== '#acesso/' + perfilAtual + '/redefinir') location.hash = 'acesso/' + perfilAtual + '/redefinir'; else abrirReset1(); }
