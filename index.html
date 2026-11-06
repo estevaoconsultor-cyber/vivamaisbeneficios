@@ -2474,6 +2474,145 @@
           padding: 36px 24px;
         }
       }
+
+      /* ---------- Animação da seção de planos ---------- */
+      .plan-wrap .plan-card {
+        opacity: 0;
+        transition:
+          transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
+          box-shadow 0.35s ease;
+      }
+      .plan-wrap.plan-on .plan-card {
+        opacity: 1;
+        animation: planEntraEsq 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+      }
+      .plan-wrap.plan-on .plan-card.plan-od {
+        animation: planEntraDir 0.9s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+      }
+      @keyframes planEntraEsq {
+        from { opacity: 0; transform: translateX(-70px) rotate(-3deg) scale(0.92); }
+        to { opacity: 1; transform: none; }
+      }
+      @keyframes planEntraDir {
+        from { opacity: 0; transform: translateX(70px) rotate(3deg) scale(0.92); }
+        to { opacity: 1; transform: none; }
+      }
+      .plan-wrap.plan-on .plan-card:hover {
+        transform: translateY(-10px) scale(1.015);
+        box-shadow: 0 30px 70px rgba(11, 99, 206, 0.22);
+      }
+      .plan-wrap.plan-on .plan-card.plan-od:hover {
+        box-shadow: 0 30px 70px rgba(108, 191, 58, 0.28);
+      }
+      /* borda com brilho em movimento (desenhada no próprio cartão) */
+      .plan-wrap .plan-card::before {
+        display: none;
+      }
+      .plan-wrap .plan-card {
+        border: 2px solid transparent;
+        background:
+          linear-gradient(#fff, #fff) padding-box,
+          linear-gradient(120deg, var(--azul), var(--turquesa), var(--verde), var(--turquesa), var(--azul)) border-box;
+        background-size: 100% 100%, 300% 300%;
+        animation-fill-mode: backwards;
+      }
+      .plan-wrap .plan-card.plan-od {
+        background:
+          linear-gradient(#fff, #fff) padding-box,
+          linear-gradient(120deg, var(--verde), var(--turquesa), var(--azul), var(--turquesa), var(--verde)) border-box;
+        background-size: 100% 100%, 300% 300%;
+      }
+      .plan-wrap.plan-on .plan-card {
+        animation:
+          planEntraEsq 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) backwards,
+          planBorda 6s linear infinite;
+      }
+      .plan-wrap.plan-on .plan-card.plan-od {
+        animation:
+          planEntraDir 0.9s 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) backwards,
+          planBorda 6s linear infinite;
+      }
+      @keyframes planBorda {
+        0% { background-position: 0 0, 0% 50%; }
+        100% { background-position: 0 0, 300% 50%; }
+      }
+      /* etiqueta e preço */
+      .plan-wrap.plan-on .plan-tag {
+        animation: planTag 0.6s 0.7s cubic-bezier(0.3, 1.6, 0.5, 1) both, planTagBrilho 2.4s 1.4s ease-in-out infinite;
+      }
+      @keyframes planTag {
+        from { opacity: 0; transform: translateY(-14px) scale(0.6); }
+        to { opacity: 1; transform: none; }
+      }
+      @keyframes planTagBrilho {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(108, 191, 58, 0.45); }
+        50% { box-shadow: 0 0 0 8px rgba(108, 191, 58, 0); }
+      }
+      .plan-wrap.plan-on .plan-od .plan-tag {
+        animation-name: planTag, planTagBrilhoTq;
+      }
+      @keyframes planTagBrilhoTq {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(0, 184, 201, 0.45); }
+        50% { box-shadow: 0 0 0 8px rgba(0, 184, 201, 0); }
+      }
+      .plan-wrap.plan-on .plan-price {
+        animation: planPreco 0.7s 0.5s cubic-bezier(0.3, 1.5, 0.5, 1) both;
+      }
+      @keyframes planPreco {
+        from { opacity: 0; transform: scale(0.6); }
+        to { opacity: 1; transform: none; }
+      }
+      .plan-wrap.plan-on .plan-dep {
+        animation: planSobe 0.5s 0.9s ease both;
+      }
+      /* itens da lista em sequência */
+      .plan-wrap .plan-list li {
+        opacity: 0;
+      }
+      .plan-wrap.plan-on .plan-list li {
+        opacity: 1;
+        animation: planItem 0.45s ease backwards;
+      }
+      .plan-wrap.plan-on .plan-list li::before {
+        animation: planCheck 0.45s cubic-bezier(0.3, 1.8, 0.5, 1) both;
+        animation-delay: inherit;
+      }
+      @keyframes planItem {
+        from { opacity: 0; transform: translateX(-14px); }
+        to { opacity: 1; transform: none; }
+      }
+      @keyframes planCheck {
+        from { transform: scale(0); }
+        to { transform: scale(1); }
+      }
+      @keyframes planSobe {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: none; }
+      }
+      /* botão Comprar pulsando */
+      .plan-wrap.plan-on .plan-card .btn-verde {
+        position: relative;
+        animation: planBotao 2.2s 2.2s ease-in-out infinite;
+      }
+      @keyframes planBotao {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(108, 191, 58, 0.55); transform: none; }
+        50% { box-shadow: 0 0 0 12px rgba(108, 191, 58, 0); transform: scale(1.02); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .plan-wrap .plan-card,
+        .plan-wrap .plan-list li {
+          opacity: 1 !important;
+          animation: none !important;
+        }
+        .plan-wrap .plan-card::before,
+        .plan-wrap .plan-tag,
+        .plan-wrap .plan-price,
+        .plan-wrap .plan-dep,
+        .plan-wrap .plan-list li::before,
+        .plan-wrap .btn-verde {
+          animation: none !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -3990,6 +4129,39 @@
           tourSteps.forEach(function (st) { tio.observe(st); });
           tourIr(0);
         }
+
+        /* ---------- Animação da seção de planos ---------- */
+        (function(){
+          var wrap = document.querySelector('.plan-wrap');
+          if (!wrap) return;
+          wrap.querySelectorAll('.plan-card').forEach(function (card, ci) {
+            card.querySelectorAll('.plan-list li').forEach(function (li, i) {
+              li.style.animationDelay = (1.0 + ci * 0.15 + i * 0.08) + 's';
+            });
+          });
+          function contarPreco(el, atraso) {
+            var m = el.textContent.match(/([\d]+),(\d{2})/);
+            if (!m || reduce) return;
+            var alvo = parseFloat(m[1] + '.' + m[2]), final = el.textContent;
+            setTimeout(function () {
+              var t0 = performance.now(), dur = 1100;
+              (function passo(t) {
+                var p = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+                el.textContent = p < 1 ? 'R$ ' + (alvo * e).toFixed(2).replace('.', ',') : final;
+                if (p < 1) requestAnimationFrame(passo);
+              })(t0);
+            }, atraso);
+          }
+          var feito = false;
+          var obs = new IntersectionObserver(function (en) {
+            if (!en[0].isIntersecting || feito) return;
+            feito = true;
+            wrap.classList.add('plan-on');
+            wrap.querySelectorAll('.plan-price').forEach(function (el, i) { contarPreco(el, 500 + i * 150); });
+            obs.disconnect();
+          }, { threshold: 0, rootMargin: '0px 0px -25% 0px' });
+          obs.observe(wrap);
+        })();
 
         rota();
       })();
